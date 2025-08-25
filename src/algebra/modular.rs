@@ -4,7 +4,7 @@ use rug::{Complete, Integer, integer::IsPrime, ops::RemRounding};
 
 use crate::{
     Checked, Unchecked,
-    algebra::{CheckIsPrime, Field, FiniteField, Group, Ring},
+    algebra::{CheckIsPrime, CompleteRing, Field, FiniteField, Group, Ring},
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -49,6 +49,14 @@ impl PrimeField {
 }
 
 impl Group<Integer> for PrimeField {
+    fn group_exponent(&self) -> Option<Integer> {
+        Some(self.modulus.clone())
+    }
+
+    fn eq_group(&self, other: &Self) -> bool {
+        self.modulus == other.modulus
+    }
+
     fn additive_identity(&self) -> Integer {
         0.into()
     }
@@ -85,6 +93,10 @@ impl Group<Integer> for PrimeField {
 }
 
 impl Ring<Integer> for PrimeField {
+    fn eq_ring(&self, other: &Self) -> bool {
+        self.modulus == other.modulus
+    }
+
     fn multiplicative_identity(&self) -> Integer {
         1.into()
     }
@@ -94,6 +106,13 @@ impl Ring<Integer> for PrimeField {
         self.norm(&z)
     }
 
+    fn ring_exponent(&self) -> Option<Integer> {
+        // By fermat's little theorem, for non-zero x, x^(p-1) = 1
+        Some((&self.modulus - Integer::ONE).complete())
+    }
+}
+
+impl CompleteRing<Integer> for PrimeField {
     fn multiplicative_inverse(&self, x: &Integer) -> Option<Integer> {
         x.clone().invert(&self.modulus).ok()
     }
@@ -113,6 +132,14 @@ impl PrimeFieldNonZeroInteger {
 }
 
 impl Field<Integer, PrimeFieldNonZeroInteger> for PrimeField {
+    fn eq_field(&self, other: &Self) -> bool {
+        self.modulus == other.modulus
+    }
+
+    fn characteristic(&self) -> Integer {
+        self.modulus.clone()
+    }
+
     fn construct_non_zero(&self, x: Integer) -> Option<PrimeFieldNonZeroInteger> {
         let x = self.norm(&x);
         if x.is_zero() {
@@ -146,10 +173,6 @@ impl Field<Integer, PrimeFieldNonZeroInteger> for PrimeField {
 
 impl FiniteField<Integer, PrimeFieldNonZeroInteger, Integer> for PrimeField {
     fn order(&self) -> Integer {
-        self.modulus.clone()
-    }
-
-    fn characteristic(&self) -> Integer {
         self.modulus.clone()
     }
 }
@@ -202,6 +225,14 @@ impl<'a> TempCyclicPrimeMultiplicativeGroup<'a> {
 
 // The group is (Z/pZ \ {0}, *)
 impl Group<Integer> for CyclicPrimeMultiplicativeGroup {
+    fn group_exponent(&self) -> Option<Integer> {
+        Some((&self.modulus - Integer::ONE).complete())
+    }
+
+    fn eq_group(&self, other: &Self) -> bool {
+        self.modulus == other.modulus
+    }
+
     fn additive_identity(&self) -> Integer {
         1.into()
     }
@@ -230,6 +261,14 @@ impl Group<Integer> for CyclicPrimeMultiplicativeGroup {
 
 // The group is (Z/pZ \ {0}, *)
 impl<'a> Group<Integer> for TempCyclicPrimeMultiplicativeGroup<'a> {
+    fn group_exponent(&self) -> Option<Integer> {
+        Some((self.modulus - Integer::ONE).complete())
+    }
+
+    fn eq_group(&self, other: &Self) -> bool {
+        self.modulus == other.modulus
+    }
+
     fn additive_identity(&self) -> Integer {
         1.into()
     }

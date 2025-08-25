@@ -1,5 +1,6 @@
 pub mod algebra;
 pub mod algorithms;
+pub mod math;
 pub mod structures;
 
 pub struct Unchecked<T>(T);

@@ -103,7 +103,7 @@ mod tests {
         let b: Integer = 6.into();
 
         let field = PrimeField::new(p).unwrap().get_checked().unwrap();
-        let curve = WeierstrassEllipticCurve::create_curve(field, a, b).unwrap();
+        let curve = WeierstrassEllipticCurve::create_curve(&field, a, b).unwrap();
         let generator = curve.get_point_at(1.into(), 3.into()).unwrap();
 
         /*{
@@ -143,7 +143,7 @@ mod tests {
         let field = PrimeField::new(p).unwrap().get_checked().unwrap();
         // y^2 = x^3 + 3 x^2 + x
         let curve =
-            MontgomeryEllipticCurve::create_curve(field, Integer::from(3), Integer::from(1))
+            MontgomeryEllipticCurve::create_curve(&field, Integer::from(3), Integer::from(1))
                 .unwrap();
 
         let generator = curve.get_point_at(5.into(), 252450201.into()).unwrap();
@@ -179,7 +179,7 @@ mod tests {
         let field = PrimeField::new(p.clone()).unwrap().get_checked().unwrap();
         // y^2 = x^3 + 3 x^2 + x
         let curve =
-            MontgomeryEllipticCurve::create_curve(field, Integer::from(3), Integer::from(1))
+            MontgomeryEllipticCurve::create_curve(&field, Integer::from(3), Integer::from(1))
                 .unwrap();
 
         // Curve's order is 999981248 and it's largest prime factor is 4051, and 999981248 / 4051 = 246848

@@ -1,10 +1,10 @@
-use std::{fmt::Debug, marker::PhantomData};
+use std::{fmt::Debug, marker::PhantomData, sync::LazyLock};
 
 use rug::Integer;
 
 use crate::{
     algebra::{
-        FiniteField, Fraction, Group,
+        Field, Fraction, Group,
         modular::{PrimeField, PrimeFieldNonZeroInteger},
     },
     algorithms::diffie_hellman::DiffieHellmanCapable,
@@ -12,17 +12,15 @@ use crate::{
 
 // y^2 = x^3 + ax + b
 #[derive(Debug)]
-pub struct WeierstrassEllipticCurve<T: Debug, NZ: Debug, U: Debug, F: FiniteField<T, NZ, U>> {
-    _phantom: PhantomData<(T, NZ, U)>,
-    field: F,
+pub struct WeierstrassEllipticCurve<'a, T: Debug, NZ: Debug, F: Field<T, NZ>> {
+    _phantom: PhantomData<NZ>,
+    field: &'a F,
     a: T,
     b: T,
 }
 
-impl<T: Debug, NZ: Debug, U: Debug, F: FiniteField<T, NZ, U>>
-    WeierstrassEllipticCurve<T, NZ, U, F>
-{
-    pub fn create_curve(field: F, a: T, b: T) -> Option<Self> {
+impl<'a, T: Debug, NZ: Debug, F: Field<T, NZ>> WeierstrassEllipticCurve<'a, T, NZ, F> {
+    pub fn create_curve(field: &'a F, a: T, b: T) -> Option<Self> {
         if field.characteristic() == 2 || field.characteristic() == 3 {
             return None;
         }
@@ -35,6 +33,18 @@ impl<T: Debug, NZ: Debug, U: Debug, F: FiniteField<T, NZ, U>>
             a,
             b,
         })
+    }
+
+    pub fn get_field(&self) -> &'a F {
+        self.field
+    }
+
+    pub fn param_a(&self) -> &T {
+        &self.a
+    }
+
+    pub fn param_b(&self) -> &T {
+        &self.b
     }
 
     fn singular(field: &F, a: &T, b: &T) -> bool {
@@ -101,9 +111,20 @@ impl<T: Debug, NZ: Debug, U: Debug, F: FiniteField<T, NZ, U>>
     }
 }
 
-impl<T: Debug, NZ: Debug, U: Debug, F: FiniteField<T, NZ, U>>
-    Group<WeierstrassEllipticCurvePoint<T>> for WeierstrassEllipticCurve<T, NZ, U, F>
+impl<'a, T: Debug, NZ: Debug, F: Field<T, NZ>> Group<WeierstrassEllipticCurvePoint<T>>
+    for WeierstrassEllipticCurve<'a, T, NZ, F>
 {
+    fn group_exponent(&self) -> Option<Integer> {
+        // not trivially computable
+        None
+    }
+
+    fn eq_group(&self, other: &Self) -> bool {
+        self.field.eq_field(other.field)
+            && self.field.eq(&self.a, &other.a)
+            && self.field.eq(&self.b, &other.b)
+    }
+
     fn additive_identity(&self) -> WeierstrassEllipticCurvePoint<T> {
         self.get_point_at_infinity()
     }
@@ -202,16 +223,16 @@ pub enum WeierstrassEllipticCurvePoint<T> {
 
 // b y^2 = x^3 + a x^2 + x
 #[derive(Debug)]
-pub struct MontgomeryEllipticCurve<T: Debug, NZ: Debug, U: Debug, F: FiniteField<T, NZ, U>> {
-    _phantom: PhantomData<(T, NZ, U)>,
-    field: F,
+pub struct MontgomeryEllipticCurve<'a, T: Debug, NZ: Debug, F: Field<T, NZ>> {
+    _phantom: PhantomData<NZ>,
+    field: &'a F,
     a24: T,
     a: T,
     b: T,
 }
 
-impl<T: Debug, NZ: Debug, U: Debug, F: FiniteField<T, NZ, U>> MontgomeryEllipticCurve<T, NZ, U, F> {
-    pub fn create_curve(field: F, a: T, b: T) -> Option<Self> {
+impl<'a, T: Debug, NZ: Debug, F: Field<T, NZ>> MontgomeryEllipticCurve<'a, T, NZ, F> {
+    pub fn create_curve(field: &'a F, a: T, b: T) -> Option<Self> {
         if field.characteristic() == 2 || field.characteristic() == 3 {
             return None;
         }
@@ -326,10 +347,10 @@ impl<T: Debug, NZ: Debug, U: Debug, F: FiniteField<T, NZ, U>> MontgomeryElliptic
             );
         }
 
-        let p1_x = Fraction::new(self.field.clone(x_1), self.field.clone(z_1));
-        let p1_y = Fraction::new(self.field.clone(y_1), self.field.clone(z_1));
-        let p2_x = Fraction::new(self.field.clone(x_2), self.field.clone(z_2));
-        let p2_y = Fraction::new(self.field.clone(y_2), self.field.clone(z_2));
+        let p1_x = Fraction::<T, NZ, F>::new(self.field.clone(x_1), self.field.clone(z_1));
+        let p1_y = Fraction::<T, NZ, F>::new(self.field.clone(y_1), self.field.clone(z_1));
+        let p2_x = Fraction::<T, NZ, F>::new(self.field.clone(x_2), self.field.clone(z_2));
+        let p2_y = Fraction::<T, NZ, F>::new(self.field.clone(y_2), self.field.clone(z_2));
 
         let x_diff = p2_x.sub(&p1_x, &self.field);
         let y_diff = p2_y.sub(&p1_y, &self.field);
@@ -349,7 +370,7 @@ impl<T: Debug, NZ: Debug, U: Debug, F: FiniteField<T, NZ, U>> MontgomeryElliptic
             }
             if y_diff.is_zero(&self.field) {
                 // Double point
-                let one = Fraction::new(
+                let one = Fraction::<T, NZ, F>::new(
                     self.field.multiplicative_identity(),
                     self.field.multiplicative_identity(),
                 );
@@ -456,15 +477,26 @@ pub struct MontgomeryEllipticCurvePoint<T> {
     z_proj: T,
 }
 
-impl<T: Debug, NZ: Debug, U: Debug, F: FiniteField<T, NZ, U>> Group<MontgomeryEllipticCurvePoint<T>>
-    for MontgomeryEllipticCurve<T, NZ, U, F>
+impl<'a, T: Debug, NZ: Debug, F: Field<T, NZ>> Group<MontgomeryEllipticCurvePoint<T>>
+    for MontgomeryEllipticCurve<'a, T, NZ, F>
 {
+    fn group_exponent(&self) -> Option<Integer> {
+        // not trivially computable
+        None
+    }
+
     fn additive_identity(&self) -> MontgomeryEllipticCurvePoint<T> {
         MontgomeryEllipticCurvePoint {
             x_proj: self.field.additive_identity(),
             y_proj: self.field.multiplicative_identity(),
             z_proj: self.field.additive_identity(),
         }
+    }
+
+    fn eq_group(&self, other: &Self) -> bool {
+        self.field.eq_field(other.field)
+            && self.field.eq(&self.a, &other.a)
+            && self.field.eq(&self.b, &other.b)
     }
 
     fn add(
@@ -528,8 +560,8 @@ impl<T: Debug, NZ: Debug, U: Debug, F: FiniteField<T, NZ, U>> Group<MontgomeryEl
     }
 }
 
-impl<T: Debug, NZ: Debug, U: Debug, F: FiniteField<T, NZ, U>> DiffieHellmanCapable<(T, T)>
-    for MontgomeryEllipticCurve<T, NZ, U, F>
+impl<'a, T: Debug, NZ: Debug, F: Field<T, NZ>> DiffieHellmanCapable<(T, T)>
+    for MontgomeryEllipticCurve<'a, T, NZ, F>
 {
     fn dh(&self, a: (T, T), b: &Integer) -> (T, T) {
         self.ladder(a.0, a.1, b)
@@ -542,7 +574,7 @@ mod tests {
     use rug::Integer;
 
     use crate::{
-        algebra::{Group, Ring, modular::PrimeField},
+        algebra::{CompleteRing, Group, Ring, modular::PrimeField},
         structures::curves::elliptic::{
             MontgomeryEllipticCurve, WeierstrassEllipticCurve, WeierstrassEllipticCurvePoint,
         },
@@ -557,7 +589,7 @@ mod tests {
 
         // y^2 = x^3 + x + 1 over F_17
         let curve =
-            WeierstrassEllipticCurve::create_curve(field, Integer::from(1), Integer::from(1))
+            WeierstrassEllipticCurve::create_curve(&field, Integer::from(1), Integer::from(1))
                 .unwrap();
 
         let test_data = &[
@@ -596,7 +628,7 @@ mod tests {
 
         // y^2 = x^3 + x over F_53
         let curve =
-            MontgomeryEllipticCurve::create_curve(field, Integer::from(0), Integer::from(1))
+            MontgomeryEllipticCurve::create_curve(&field, Integer::from(0), Integer::from(1))
                 .unwrap();
 
         let test_data = &[
@@ -636,23 +668,17 @@ mod tests {
 
     #[test]
     fn test_montgomery_ladder() {
+        let field = PrimeField::new(9973.into()).unwrap().get_checked().unwrap();
+
         // By^2 = x^3 + Ax^2 + x over F_9973, A = 0, B = 1 --> y^2 = x^3 + x
-        let curve_m = MontgomeryEllipticCurve::create_curve(
-            PrimeField::new(9973.into()).unwrap().get_checked().unwrap(),
-            Integer::from(0),
-            Integer::from(1),
-        )
-        .unwrap();
+        let curve_m =
+            MontgomeryEllipticCurve::create_curve(&field, Integer::from(0), Integer::from(1))
+                .unwrap();
 
         // y^2 = x^3 + Ax + B over F_9973, A = 1, B = 0 --> y^2 = x^3 + x
-        let curve_w = WeierstrassEllipticCurve::create_curve(
-            PrimeField::new(9973.into()).unwrap().get_checked().unwrap(),
-            Integer::from(1),
-            Integer::from(0),
-        )
-        .unwrap();
-
-        let field = PrimeField::new(9973.into()).unwrap().get_checked().unwrap();
+        let curve_w =
+            WeierstrassEllipticCurve::create_curve(&field, Integer::from(1), Integer::from(0))
+                .unwrap();
 
         (0..9973i64).into_par_iter().for_each(|x| {
             let rhs = x * x * x + x;
@@ -726,15 +752,16 @@ mod tests {
     }
 }
 
-pub fn get_curve25519()
--> MontgomeryEllipticCurve<Integer, PrimeFieldNonZeroInteger, Integer, PrimeField> {
-    // SAFETY: 2^255 - 19 is verified to be definitely prime
-    let field = unsafe {
-        PrimeField::new((Integer::from(1) << 255) - Integer::from(19))
-            .unwrap()
-            .unwrap()
-            .unwrap()
-    };
+// SAFETY: 2^255 - 19 is verified to be definitely prime
+static P_25519_FIELD: LazyLock<PrimeField> = LazyLock::new(|| unsafe {
+    PrimeField::new((Integer::from(1) << 255) - Integer::from(19))
+        .unwrap()
+        .unwrap()
+        .unwrap()
+});
 
-    MontgomeryEllipticCurve::create_curve(field, Integer::from(486662), Integer::from(1)).unwrap()
+pub fn get_curve25519()
+-> MontgomeryEllipticCurve<'static, Integer, PrimeFieldNonZeroInteger, PrimeField> {
+    MontgomeryEllipticCurve::create_curve(&*P_25519_FIELD, Integer::from(486662), Integer::from(1))
+        .unwrap()
 }
