@@ -215,7 +215,7 @@ impl CyclicPrimeMultiplicativeGroup {
 
 impl<'a> TempCyclicPrimeMultiplicativeGroup<'a> {
     pub fn modulus(&self) -> &Integer {
-        &self.modulus
+        self.modulus
     }
 
     pub fn norm(&self, z: &Integer) -> Integer {
@@ -279,7 +279,7 @@ impl<'a> Group<Integer> for TempCyclicPrimeMultiplicativeGroup<'a> {
     }
 
     fn additive_inverse(&self, x: &Integer) -> Integer {
-        x.clone().invert(&self.modulus).unwrap()
+        x.clone().invert(self.modulus).unwrap()
     }
 
     fn clone(&self, x: &Integer) -> Integer {

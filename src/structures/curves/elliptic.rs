@@ -24,7 +24,7 @@ impl<'a, T: Debug, NZ: Debug, F: Field<T, NZ>> WeierstrassEllipticCurve<'a, T, N
         if field.characteristic() == 2 || field.characteristic() == 3 {
             return None;
         }
-        if Self::singular(&field, &a, &b) {
+        if Self::singular(field, &a, &b) {
             return None;
         }
         Some(Self {
@@ -208,10 +208,7 @@ impl<'a, T: Debug, NZ: Debug, F: Field<T, NZ>> Group<WeierstrassEllipticCurvePoi
     }
 
     fn is_additive_identity(&self, x: &WeierstrassEllipticCurvePoint<T>) -> bool {
-        match x {
-            WeierstrassEllipticCurvePoint::Infinity => true,
-            _ => false,
-        }
+        matches!(x, WeierstrassEllipticCurvePoint::Infinity)
     }
 }
 
@@ -236,7 +233,7 @@ impl<'a, T: Debug, NZ: Debug, F: Field<T, NZ>> MontgomeryEllipticCurve<'a, T, NZ
         if field.characteristic() == 2 || field.characteristic() == 3 {
             return None;
         }
-        if Self::singular(&field, &a, &b) {
+        if Self::singular(field, &a, &b) {
             return None;
         }
 
@@ -323,8 +320,8 @@ impl<'a, T: Debug, NZ: Debug, F: Field<T, NZ>> MontgomeryEllipticCurve<'a, T, NZ
         let xmul = self.field.mul(&xsum, &xsum);
         let zmul = self.field.mul(&zdiff, &zdiff);
 
-        let new_x = self.field.mul(&z_pq, &xmul);
-        let new_z = self.field.mul(&x_pq, &zmul);
+        let new_x = self.field.mul(z_pq, &xmul);
+        let new_z = self.field.mul(x_pq, &zmul);
 
         (new_x, new_z)
     }
@@ -352,8 +349,8 @@ impl<'a, T: Debug, NZ: Debug, F: Field<T, NZ>> MontgomeryEllipticCurve<'a, T, NZ
         let p2_x = Fraction::<T, NZ, F>::new(self.field.clone(x_2), self.field.clone(z_2));
         let p2_y = Fraction::<T, NZ, F>::new(self.field.clone(y_2), self.field.clone(z_2));
 
-        let x_diff = p2_x.sub(&p1_x, &self.field);
-        let y_diff = p2_y.sub(&p1_y, &self.field);
+        let x_diff = p2_x.sub(&p1_x, self.field);
+        let y_diff = p2_y.sub(&p1_y, self.field);
 
         let a = Fraction::new(
             self.field.clone(&self.a),
@@ -364,46 +361,46 @@ impl<'a, T: Debug, NZ: Debug, F: Field<T, NZ>> MontgomeryEllipticCurve<'a, T, NZ
             self.field.multiplicative_identity(),
         );
 
-        let l = if x_diff.is_zero(&self.field) {
-            if p1_y.is_zero(&self.field) {
+        let l = if x_diff.is_zero(self.field) {
+            if p1_y.is_zero(self.field) {
                 return self.get_point_at_infinity();
             }
-            if y_diff.is_zero(&self.field) {
+            if y_diff.is_zero(self.field) {
                 // Double point
                 let one = Fraction::<T, NZ, F>::new(
                     self.field.multiplicative_identity(),
                     self.field.multiplicative_identity(),
                 );
-                let two = one.add(&one, &self.field);
-                let three = two.add(&one, &self.field);
-                let x_squared = p1_x.mul(&p1_x, &self.field);
-                let three_x_squared = x_squared.mul(&three, &self.field);
-                let two_x = p1_x.mul(&two, &self.field);
-                let two_a_x = a.mul(&two_x, &self.field);
+                let two = one.add(&one, self.field);
+                let three = two.add(&one, self.field);
+                let x_squared = p1_x.mul(&p1_x, self.field);
+                let three_x_squared = x_squared.mul(&three, self.field);
+                let two_x = p1_x.mul(&two, self.field);
+                let two_a_x = a.mul(&two_x, self.field);
 
                 let l_num = three_x_squared
-                    .add(&two_a_x, &self.field)
-                    .add(&one, &self.field);
-                let l_den = two.mul(&b, &self.field).mul(&p1_y, &self.field);
+                    .add(&two_a_x, self.field)
+                    .add(&one, self.field);
+                let l_den = two.mul(&b, self.field).mul(&p1_y, self.field);
 
-                l_num.div(&l_den, &self.field)
+                l_num.div(&l_den, self.field)
             } else {
                 return self.get_point_at_infinity();
             }
         } else {
-            y_diff.div(&x_diff, &self.field)
+            y_diff.div(&x_diff, self.field)
         };
 
-        let l_squared = l.mul(&l, &self.field);
-        let b_l_squared = b.mul(&l_squared, &self.field);
+        let l_squared = l.mul(&l, self.field);
+        let b_l_squared = b.mul(&l_squared, self.field);
 
-        let a_plus_x1_plus_x2 = a.add(&p1_x, &self.field).add(&p2_x, &self.field);
+        let a_plus_x1_plus_x2 = a.add(&p1_x, self.field).add(&p2_x, self.field);
 
-        let p3_x = b_l_squared.sub(&a_plus_x1_plus_x2, &self.field);
+        let p3_x = b_l_squared.sub(&a_plus_x1_plus_x2, self.field);
 
         let p3_y = l
-            .mul(&p1_x.sub(&p3_x, &self.field), &self.field)
-            .sub(&p1_y, &self.field);
+            .mul(&p1_x.sub(&p3_x, self.field), self.field)
+            .sub(&p1_y, self.field);
 
         let x = self.field.mul(p3_x.get_num(), p3_y.get_den());
         let y = self.field.mul(p3_y.get_num(), p3_x.get_den());
@@ -566,6 +563,33 @@ impl<'a, T: Debug, NZ: Debug, F: Field<T, NZ>> DiffieHellmanCapable<(T, T)>
     fn dh(&self, a: (T, T), b: &Integer) -> (T, T) {
         self.ladder(a.0, a.1, b)
     }
+}
+
+// SAFETY: 2^255 - 19 is verified to be definitely prime
+static P_25519_FIELD: LazyLock<PrimeField> = LazyLock::new(|| unsafe {
+    PrimeField::new((Integer::from(1) << 255) - Integer::from(19))
+        .unwrap()
+        .unwrap()
+        .unwrap()
+});
+
+pub fn get_curve25519()
+-> MontgomeryEllipticCurve<'static, Integer, PrimeFieldNonZeroInteger, PrimeField> {
+    MontgomeryEllipticCurve::create_curve(&*P_25519_FIELD, Integer::from(486662), Integer::from(1))
+        .unwrap()
+}
+
+static P_448_FIELD: LazyLock<PrimeField> = LazyLock::new(|| unsafe {
+    PrimeField::new((Integer::from(1) << 448) - (Integer::from(1) << 224) - Integer::from(1))
+        .unwrap()
+        .unwrap()
+        .unwrap()
+});
+
+pub fn get_curve448()
+-> WeierstrassEllipticCurve<'static, Integer, PrimeFieldNonZeroInteger, PrimeField> {
+    WeierstrassEllipticCurve::create_curve(&*P_448_FIELD, Integer::from(5), Integer::from(1))
+        .unwrap()
 }
 
 #[cfg(test)]
@@ -750,18 +774,4 @@ mod tests {
             }
         });
     }
-}
-
-// SAFETY: 2^255 - 19 is verified to be definitely prime
-static P_25519_FIELD: LazyLock<PrimeField> = LazyLock::new(|| unsafe {
-    PrimeField::new((Integer::from(1) << 255) - Integer::from(19))
-        .unwrap()
-        .unwrap()
-        .unwrap()
-});
-
-pub fn get_curve25519()
--> MontgomeryEllipticCurve<'static, Integer, PrimeFieldNonZeroInteger, PrimeField> {
-    MontgomeryEllipticCurve::create_curve(&*P_25519_FIELD, Integer::from(486662), Integer::from(1))
-        .unwrap()
 }

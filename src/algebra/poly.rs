@@ -151,7 +151,7 @@ pub struct PolynomialRing<'a, T: Debug, R: Ring<T>> {
 impl<'a, T: Debug, R: Ring<T>> PolynomialRing<'a, T, R> {
     pub fn new_from_poly(poly: &Polynomial<'a, T, R>) -> Self {
         Self {
-            ring: &poly.ring,
+            ring: poly.ring,
             zero: Polynomial::new(poly.ring, vec![]),
             one: Polynomial::new(poly.ring, vec![poly.ring.multiplicative_identity()]),
         }
@@ -264,7 +264,7 @@ impl<'a, T: Debug, NZ: Debug, F: Field<T, NZ>> EuclideanDivisible<NZ> for Polyno
             // remove trailing zeros
             while remainder
                 .last()
-                .map_or(false, |x| field.is_additive_identity(x))
+                .is_some_and(|x| field.is_additive_identity(x))
             {
                 remainder.pop();
             }
@@ -287,7 +287,7 @@ impl<'a, T: Debug, NZ: Debug, F: Field<T, NZ>> EuclideanDivisible<NZ> for Polyno
     }
 
     fn is_zero(&self) -> bool {
-        self.coeffs.len() == 0
+        self.coeffs.is_empty()
     }
 }
 

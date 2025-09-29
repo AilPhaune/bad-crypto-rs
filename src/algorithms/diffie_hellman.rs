@@ -27,7 +27,7 @@ impl<'a, T: Debug, G: DiffieHellmanCapable<T>> DiffieHellman<'a, T, G> {
         Self {
             _phantom: PhantomData,
             public_key: dh_group.dh(generator, &private_key),
-            private_key: private_key,
+            private_key,
             dh_group,
         }
     }
@@ -41,7 +41,7 @@ impl<'a, T: Debug, G: DiffieHellmanCapable<T>> DiffieHellman<'a, T, G> {
     }
 
     pub fn get_dh_group(&self) -> &G {
-        &self.dh_group
+        self.dh_group
     }
 
     pub fn compute_shared_secret(&self, other: T) -> T {
