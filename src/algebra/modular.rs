@@ -4,7 +4,7 @@ use rug::{Complete, Integer, integer::IsPrime, ops::RemRounding};
 
 use crate::{
     Checked, Unchecked,
-    algebra::{CheckIsPrime, CompleteRing, Field, FiniteField, Group, Ring},
+    algebra::{CheckIsPrime, CompleteRing, CyclicGroup, Field, FiniteField, Group, Ring},
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -45,6 +45,13 @@ impl PrimeField {
         TempCyclicPrimeMultiplicativeGroup {
             modulus: &self.modulus,
         }
+    }
+}
+
+impl CyclicGroup<Integer> for PrimeField {
+    fn order(&self) -> Integer {
+        // The additive group is (Z/pZ, +), which has order p
+        self.modulus.clone()
     }
 }
 
@@ -180,6 +187,12 @@ impl FiniteField<Integer, PrimeFieldNonZeroInteger, Integer> for PrimeField {
 #[derive(Debug)]
 pub struct CyclicPrimeMultiplicativeGroup {
     modulus: Integer,
+}
+
+impl CyclicGroup<Integer> for CyclicPrimeMultiplicativeGroup {
+    fn order(&self) -> Integer {
+        (&self.modulus - Integer::ONE).complete()
+    }
 }
 
 #[derive(Debug)]

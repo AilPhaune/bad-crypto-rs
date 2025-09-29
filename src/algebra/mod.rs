@@ -56,6 +56,11 @@ pub trait Group<T: Debug>: Debug {
     }
 }
 
+pub trait CyclicGroup<T: Debug>: Group<T> {
+    /// The number of elements in the group
+    fn order(&self) -> Integer;
+}
+
 pub trait Ring<T: Debug>: Group<T> {
     /// The multiplicative identity element `1`
     fn multiplicative_identity(&self) -> T;
